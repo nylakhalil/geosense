@@ -1,10 +1,8 @@
 import os
 
-import numpy
 import argparse
-import rasterio
-import numpy as np
-from rasterio.plot import plotting_extent
+import osr
+from osgeo import gdal
 
 import matplotlib
 matplotlib.use('TkAgg')
@@ -13,61 +11,50 @@ import matplotlib.pyplot as plt
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-
 class GeoInfo():
-	def __init__(self, data, meta, shape, extent):
+	def __init__(self, driver,crs, data, count, height, width):
+		self.driver = driver
+		self.crs = 'epsg:' + crs
 		self.data = data
-		self.meta = meta
-		self.shape = shape
-		self.extent = extent
+		self.count = count
+		self.height = height
+		self.width = width
 
 
-def hillshade(array, azimuth, angle_altitude):
-	# FROM: https://github.com/rveciana/introduccion-python-geoespacial/blob/master/hillshade.py#L23
-    azimuth = 360.0 - azimuth 
-    
-    x, y = np.gradient(array)
-    slope = np.pi / 2. - np.arctan(np.sqrt(x*x + y*y))
-    aspect = np.arctan2(-x, y)
-    azimuthrad = azimuth * np.pi / 180.
-    altituderad = angle_altitude * np.pi / 180.
-     
- 
-    shaded = np.sin(altituderad) * np.sin(slope) + np.cos(altituderad) * np.cos(slope) * np.cos((azimuthrad - np.pi/2.) - aspect)
-    return 255 * (shaded + 1) / 2
+def process_raster(output_file, input_file, display_type):
+	options = gdal.DEMProcessingOptions(zeroForFlat=True)
+	dataset = gdal.DEMProcessing(output_file, input_file, display_type, options=options)
+	print("Dataset Processed: {}".format(dataset.GetDescription()))
 
 
 def read_raster(filepath):
-	with rasterio.open(filepath) as src:
-		print("Metadata: {}".format(src.meta))
-		raster = src.read(1, masked=True)
-		return GeoInfo(raster, src.meta, raster.shape, rasterio.plot.plotting_extent(src))
+	dataset = gdal.Open(filepath)
+	proj = osr.SpatialReference(wkt=dataset.GetProjection())
+	crs = proj.GetAttrValue('AUTHORITY', 1)
+	return GeoInfo(dataset.GetDriver().LongName, crs, dataset.ReadAsArray(), dataset.RasterCount, dataset.RasterXSize, dataset.RasterYSize)
 
 
-def display_raster(raster, display_type):
-	if display_type.upper() == "HILLSHADE":
-		array = hillshade(raster.data, 30, 30)
-	else:
-		array = raster.data
-
+def display_raster(geoinfo):
 	plt.subplots(figsize = (10,10))
-	plt.imshow(array, cmap='terrain_r', extent=raster.extent)
+	plt.imshow(geoinfo.data, cmap='Greys')
 	plt.colorbar()
 	plt.xlabel('Column')
 	plt.ylabel('Row')
-	plt.title('Raster Shape - {}'.format(raster.shape))
+	plt.title('Raster Shape - {}, {}'.format(geoinfo.height, geoinfo.width))
 	plt.show(block=True)
 
 
 if __name__ == '__main__':
-	parser = argparse.ArgumentParser(description='Geosense geospatial library for testing geo libs and data')
-	parser.add_argument('--filename', required=True, help='File name')
-	parser.add_argument('--display', default='ORIGINAL', help='Display Types: ORIGINAL, HILLSHADE')
+	parser = argparse.ArgumentParser(description='Geosense: Geospatial library for testing geo libs and data')
+	parser.add_argument('--srcfile', required=True, help='Source File name')
+	parser.add_argument('--outfile', required=True, help='Ouput File name')
+	parser.add_argument('--process', default='hillshade', help='Display Types: hillshade, slope, aspect, color-relief, TRI, TPI, Roughness')
 	args = parser.parse_args()
 
-	filepath = os.path.join(script_dir, args.filename)
-	print('File path: {}'.format(filepath))
+	src_file = os.path.join(script_dir, args.srcfile)
+	out_file = os.path.join(script_dir, args.outfile)
+	print('Source File: {}, Out File: {}'.format(src_file, out_file))
 
-	raster = read_raster(filepath)
-	display_raster(raster, args.display)
-
+	process_raster(out_file, src_file, args.process)
+	geoinfo = read_raster(out_file)
+	#display_raster(geoinfo)
