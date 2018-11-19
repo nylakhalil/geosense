@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+    
+    <head>
+        <title>GeoSense</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    </head>
+    
+    <body>
+        <nav class="navbar navbar-light bg-light">
+            <a class="navbar-brand">GeoSense</a>
+            <form>
+                <div class="form-row">
+                    <div class="col-md-6">
+                        <div class="custom-file">
+                            <label id="lbl-file" class="custom-file-label" for="customFile">Choose GeoTiff file</label>
+                            <input id="filepath" type="file" class="custom-file-input" accept="image/tiff">
+                        </div>
+                    </div>
+                    <div class="col">
+                        <select id="colorscale" class="custom-select">
+                            <option value="viridis" selected>Color Scale</option>
+                            <option value="earth">Earth</option>
+                            <option value="plasma">Plasma</option>
+                            <option value="viridis">Viridis</option>
+                            <option value="inferno">Inferno</option>
+                            <option value="rainbow">Rainbow</option>
+                            <option value="blackbody">Blackbody</option>
+                        </select>
+                    </div>
+                    <div class="col">
+                        <button id="fileload" type="button" class="btn btn-outline-primary" onclick="load()">Load</button>
+                    </div>
+                </div>
+            </form>
+        </nav>
+
+        <canvas id="canvas"></canvas>
+        <script src="lib/geotiff.bundle.min.js"></script>
+        <script src="lib/plotty.min.js"></script>
+        <script>
+            document.getElementById("filepath").onchange = function () {
+                document.getElementById("lbl-file").innerHTML = this.value.replace(/^.*[\\\/]/, '');
+            };
+
+            function load() {
+                (async function() {
+                    var filepath = document.getElementById("filepath").value;
+                    var filename = filepath.replace(/^.*[\\\/]/, '');
+                    if (filename === '') {
+                        alert("Please select a GeoTIFF File");
+                        return;
+                    }
+
+                    const url = 'http://localhost:8000/data/' + filename;
+                    const response = await fetch(url);
+                    const arrayBuffer = await response.arrayBuffer();
+                    const tiff = await GeoTIFF.fromArrayBuffer(arrayBuffer);
+                    const image = await tiff.getImage();
+                    const data = await image.readRasters();
+
+                    const plot = new plotty.plot({
+                        canvas: document.getElementById("canvas"),
+                        data: data[0],
+                        width: image.getWidth(),
+                        height: image.getHeight(),
+                        colorScale: document.getElementById("colorscale").value,
+                        domain: [0, 256]
+                    });
+                    plot.render();
+                    console.log("Render complete for " + filename);
+                })();
+            }          
+        </script>
+    </body>
+
+</html>
