@@ -8,7 +8,7 @@ from config.Settings import LOG_FORMAT
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 
 
-def process(out_filepath, src_filepath, process_type):
+def process(out_filepath, src_filepath, process_type, color_file=None):
 	"""
 	Transform src raster file and output to new raster file 
 	Args:
@@ -16,7 +16,7 @@ def process(out_filepath, src_filepath, process_type):
 		src_filepath: File path for source raster file
 		process_type: Type of process to apply
 	"""
-	options = gdal.DEMProcessingOptions(zeroForFlat=True, colorFilename='/Users/nylakhalil/Develop/geosense/data/color-file.txt')
+	options = gdal.DEMProcessingOptions(zeroForFlat=True, colorFilename=color_file)
 	dataset = gdal.DEMProcessing(out_filepath, src_filepath, process_type, options=options)
 	logging.info("Dataset Processed: {}".format(out_filepath))
 	dataset = None
