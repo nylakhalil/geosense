@@ -28,5 +28,5 @@ singledispatch==3.4.0.3
 six==1.11.0
 snuggs==1.4.2
 subprocess32==3.5.2
-urllib3==1.25.2
+urllib3==1.25.8
 wrapt==1.10.11
